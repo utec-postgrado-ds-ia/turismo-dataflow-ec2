@@ -1,6 +1,5 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 import psycopg2
-import os
 
 app = Flask(__name__)
 
@@ -50,34 +49,66 @@ TABLAS = {
     """
 }
 
+def get_conn():
+    return psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        database=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD
+    )
+
 @app.route("/reset-tables", methods=["POST"])
 def reset_tables():
     try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
-        )
+        conn = get_conn()
         cur = conn.cursor()
 
         for tabla, create_sql in TABLAS.items():
-            # Borra tabla si existe
             cur.execute(f"DROP TABLE IF EXISTS {tabla} CASCADE;")
-            # Crea tabla
             cur.execute(create_sql)
 
         conn.commit()
         cur.close()
         conn.close()
-
         return jsonify({"status": "ok", "message": "Tablas creadas correctamente."})
-
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route("/<tabla>", methods=["GET"])
+def consultar_tabla(tabla):
+    if tabla not in TABLAS:
+        return jsonify({"status": "error", "message": f"Tabla {tabla} no encontrada."}), 404
+
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        # Construir query base
+        query = f"SELECT * FROM {tabla}"
+
+        # Verificar si hay filtros por query params
+        filtros = []
+        valores = []
+        for key, value in request.args.items():
+            filtros.append(f"{key} = %s")
+            valores.append(value)
+
+        if filtros:
+            query += " WHERE " + " AND ".join(filtros)
+
+        query += " LIMIT 100;"  # Limitar a 100 registros por defecto
+
+        cur.execute(query, valores)
+        columnas = [desc[0] for desc in cur.description]
+        filas = cur.fetchall()
+        resultados = [dict(zip(columnas, fila)) for fila in filas]
+
+        cur.close()
+        conn.close()
+        return jsonify({"status": "ok", "data": resultados})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == "__main__":
-
     app.run(host="0.0.0.0", port=5001)
