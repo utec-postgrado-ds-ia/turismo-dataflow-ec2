@@ -6,6 +6,8 @@ import psycopg2
 
 app = Flask(__name__)
 
+faker = Faker()
+
 # Configura tus variables de conexión a RDS
 DB_HOST = "turismo-db.cv8ueqky6eu4.us-east-1.rds.amazonaws.com"
 DB_PORT = 5432
