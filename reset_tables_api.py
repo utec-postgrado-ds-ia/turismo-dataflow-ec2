@@ -7,7 +7,7 @@ app = Flask(__name__)
 # Configura tus variables de conexión a RDS
 DB_HOST = "turismo-db.cv8ueqky6eu4.us-east-1.rds.amazonaws.com"
 DB_PORT = 5432
-DB_NAME = "turismo-db"
+DB_NAME = "postgres"
 DB_USER = "postgres"
 DB_PASSWORD = "postgresql"
 
@@ -79,4 +79,5 @@ def reset_tables():
 
 
 if __name__ == "__main__":
+
     app.run(host="0.0.0.0", port=5001)
