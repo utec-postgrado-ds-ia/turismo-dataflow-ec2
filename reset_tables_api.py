@@ -84,10 +84,8 @@ def consultar_tabla(tabla):
         conn = get_conn()
         cur = conn.cursor()
 
-        # Construir query base
         query = f"SELECT * FROM {tabla}"
 
-        # Verificar si hay filtros por query params
         filtros = []
         valores = []
         for key, value in request.args.items():
@@ -97,7 +95,7 @@ def consultar_tabla(tabla):
         if filtros:
             query += " WHERE " + " AND ".join(filtros)
 
-        query += " LIMIT 100;"  # Limitar a 100 registros por defecto
+        query += " LIMIT 100;"
 
         cur.execute(query, valores)
         columnas = [desc[0] for desc in cur.description]
