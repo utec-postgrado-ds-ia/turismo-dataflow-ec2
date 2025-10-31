@@ -3,12 +3,16 @@ from flask import Flask, jsonify, request
 from datetime import datetime, timedelta
 from faker import Faker
 import psycopg2
+import boto3
+import pandas as pd
+from io import BytesIO
 
 app = Flask(__name__)
 
 faker = Faker()
 
-# Configura tus variables de conexión a RDS
+S3_BUCKET = "turismo-datalake-31102025"
+
 DB_HOST = "turismo-db.cv8ueqky6eu4.us-east-1.rds.amazonaws.com"
 DB_PORT = 5432
 DB_NAME = "postgres"
@@ -250,6 +254,29 @@ def generar_opiniones(cantidad):
         conn.close()
 
         return jsonify({"status": "ok", "message": f"{cantidad} opiniones generadas correctamente."})
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/exportar-parquet/<tabla>", methods=["POST"])
+def exportar_parquet(tabla):
+    if tabla not in TABLAS:
+        return jsonify({"status": "error", "message": f"Tabla {tabla} no encontrada."}), 404
+
+    try:
+        conn = get_conn()
+        df = pd.read_sql(f"SELECT * FROM {tabla};", conn)
+        conn.close()
+
+        buffer = BytesIO()
+        df.to_parquet(buffer, index=False)
+        buffer.seek(0)
+
+        s3_key = f"raw/{tabla}/{tabla}.parquet"
+        s3 = boto3.client('s3')
+        s3.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=buffer.getvalue())
+
+        return jsonify({"status": "ok", "message": f"{tabla} exportada a S3 en {s3_key}"})
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
